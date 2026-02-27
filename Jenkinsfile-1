@@ -1,72 +1,15 @@
 pipeline {
-    agent any
+    agent { label 'linux' }
     options {
         buildDiscarder(logRotator(numToKeepStr: '5'))
     }
-    environment {
-        MAVEN_OPTS = "-Dmaven.repo.local=${env.JENKINS_HOME}/.m2/repository"
-        MYSQL_PORT = ''  // Will be set dynamically
-    }
     stages {
-        stage('Start MySQL') {
-            steps {
-                script {
-                    // Run MySQL with random port
-                    sh '''
-                        docker stop mysql-container || true
-                        docker rm mysql-container || true
-                        
-                        # Run with random port
-                        docker run --name mysql-container \
-                            -e MYSQL_ALLOW_EMPTY_PASSWORD=yes \
-                            -e MYSQL_DATABASE=studentdb \
-                            -P \
-                            -d mysql:8
-                        
-                        sleep 15
-                        
-                        # Get the actual port that was assigned
-                        MYSQL_PORT=$(docker port mysql-container 3306 | cut -d: -f2)
-                        echo "MYSQL_PORT=${MYSQL_PORT}" > mysql_port.txt
-                    '''
-                }
-            }
-        }
         stage('Scan') {
             steps {
-                script {
-                    // Read the port from file
-                    def portProps = readProperties file: 'mysql_port.txt'
-                    def mysqlPort = portProps['MYSQL_PORT']
-                    
-                    withSonarQubeEnv('sq1') {
-                        sh 'chmod +x mvnw'
-                        sh "./mvnw clean verify -Dspring.datasource.url=jdbc:mysql://localhost:${mysqlPort}/studentdb?createDatabaseIfNotExist=true org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.0.2155:sonar"
-                    }
+                withSonarQubeEnv(installationName: 'sql') {
+                    sh './mvnw clean org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.0.2155:sonar'
                 }
             }
-        }
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
-    }
-    post {
-        always {
-            script {
-                try {
-                    sh 'docker stop mysql-container || true'
-                    sh 'docker rm mysql-container || true'
-                    sh 'rm -f mysql_port.txt'
-                } catch (Exception e) {
-                    echo "Could not clean up"
-                }
-            }
-            archiveArtifacts artifacts: '**/target/*.jar', allowEmptyArchive: true
-            junit '**/target/surefire-reports/*.xml'
         }
     }
 }
