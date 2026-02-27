@@ -7,6 +7,8 @@ pipeline {
         stage('Scan') {
             steps {
                 withSonarQubeEnv(installationName: 'sq1') {
+                    // Ensure mvnw is executable in Jenkins workspace
+                    sh 'chmod +x mvnw'
                     sh './mvnw clean org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.0.2155:sonar'
                 }
             }
