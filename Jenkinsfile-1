@@ -5,8 +5,25 @@ pipeline {
     }
     environment {
         MAVEN_OPTS = "-Dmaven.repo.local=${env.JENKINS_HOME}/.m2/repository"
+        // Use environment-specific database URL
+        MYSQL_HOST = 'mysql-container'  // Will be the Docker container name
     }
     stages {
+        stage('Start MySQL') {
+            steps {
+                script {
+                    sh '''
+                        docker run --name mysql-container \
+                            -e MYSQL_ALLOW_EMPTY_PASSWORD=yes \
+                            -e MYSQL_DATABASE=studentdb \
+                            -p 3306:3306 \
+                            -d mysql:8
+                        # Wait for MySQL to be ready
+                        sleep 30
+                    '''
+                }
+            }
+        }
         stage('Scan') {
             steps {
                 withSonarQubeEnv('sq1') {
@@ -25,6 +42,9 @@ pipeline {
     }
     post {
         always {
+            // Clean up MySQL container
+            sh 'docker stop mysql-container || true'
+            sh 'docker rm mysql-container || true'
             archiveArtifacts artifacts: '**/target/*.jar', allowEmptyArchive: true
             junit '**/target/surefire-reports/*.xml'
         }
