@@ -1,15 +1,31 @@
 pipeline {
-    agent { label 'linux' }
-    options {
-        buildDiscarder(logRotator(numToKeepStr: '5'))
+  agent any
+
+  options {
+    buildDiscarder(logRotator(numToKeepStr: '5'))
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
     }
-    stages {
-        stage('Scan') {
-            steps {
-                withSonarQubeEnv(installationName: 'sql') {
-                    sh './mvnw clean org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.0.2155:sonar'
-                }
-            }
+
+    stage('Build + SonarQube (skip tests)') {
+      steps {
+        withSonarQubeEnv('sq1') {
+          // utilise le token injecté par Jenkins
+          sh 'mvn -B clean verify -DskipTests sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN'
         }
+      }
     }
+  }
+
+  post {
+    always {
+      junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
+      archiveArtifacts artifacts: 'target/*.jar', fingerprint: true, allowEmptyArchive: true
+    }
+  }
 }
