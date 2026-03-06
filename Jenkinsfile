@@ -16,18 +16,14 @@ pipeline {
 
         stage('Build') {
             steps {
-                dir('student-management') {
-                    sh 'mvn clean package -DskipTests'
-                }
+                sh 'mvn clean package -DskipTests'
             }
         }
 
         stage('Docker Build & Push') {
             steps {
-                dir('student-management') {
-                    sh 'docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .'
-                    sh 'docker push ${DOCKER_IMAGE}:${DOCKER_TAG}'
-                }
+                sh 'docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .'
+                sh 'docker push ${DOCKER_IMAGE}:${DOCKER_TAG}'
             }
         }
 
