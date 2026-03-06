@@ -22,7 +22,7 @@ pipeline {
 
         stage('Docker Build & Push') {
             steps {
-                sh 'docker login -u azizbenabdallah -p jc-i5jxUL$H36N4'
+                sh "docker login -u azizbenabdallah -p 'jc-i5jxUL\$H36N4'"
                 sh 'docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .'
                 sh 'docker push ${DOCKER_IMAGE}:${DOCKER_TAG}'
             }
